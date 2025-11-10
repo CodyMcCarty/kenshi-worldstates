@@ -7,10 +7,12 @@ import (
 )
 
 /* Todos
-[] reintroduce seedtowns
-[] rename things
-[] test out logs and debugers herlpers
-[] finish leader infos and looking at the wiki
+[x] reintroduce seedtowns
+[x] rename things
+[x] test out logs and debugers herlpers
+[x] finish leader infos and looking at the wiki
+[] figure out order
+[] add head leaders to factions
 [] add HN and Shek towns
 [] add bounties
 */
@@ -31,12 +33,22 @@ func main() {
 	w := &World{DesiredTownMap: make(map[*Town]DesiredTown)}
 	w.Seed()
 
+	TryToGetToProsperousQuickly(w)
+	PrintAllTownInfo(w)
+
 	// todo: add UC TG Slaver only bounties i.e. Blue Eyes.
 	// todo: I may want to keep heft as is
 	// todo what's the earliest I can taken longen and tengu?
 	// todo: what can be done with HN and Shek to improve their towns and life?
 	// todo: I initally set out to get all the Trader's guild
 	// todo: double check: what happens if all captured leaders get free? die?
+}
+
+// Goal is Make the world fun, better towns, go after the trade guild.
+func TryToGetToProsperousQuickly(w *World) {
+	w.Capture(L_LdYoshinaga)
+	w.Capture(L_Longen)
+	//w.Capture(L_Tengu)
 }
 
 func fromOldApp(w *World) {

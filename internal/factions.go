@@ -9,6 +9,7 @@ type Faction struct {
 var (
 	F_AntiSlavers    = &Faction{Name: "Anti-Slavers"}
 	F_Cannibal       = &Faction{Name: "Cannibal"}
+	F_CrabRaiders    = &Faction{Name: "Crab Raiders"}
 	F_Deadcat        = &Faction{Name: "Deadcat"}
 	F_EmpirePeasants = &Faction{Name: "Empire Peasants"}
 	F_Fishmen        = &Faction{Name: "Fishmen"}

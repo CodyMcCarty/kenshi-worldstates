@@ -8,36 +8,38 @@ type Leader struct {
 	Home    *Town
 	// Alive&Free, Dead, or Imprisoned
 	Status LeaderStatus
-	Notes  string
+	//BountyAmount float64
+	//BountyFactions []*Faction
+	Notes string
 }
 
 // list of people in play
 var (
-	L_BossSimion    = &Leader{Name: "Boss Simion", Faction: F_RebelFarmers, Notes: "Can disappear. Tinfist will send you to make an aliance with anti slavers"} // todo revisit
-	L_CrabQueen     = &Leader{Name: "nil"}
-	L_LdInaba       = &Leader{Name: "nil"}
-	L_LdKana        = &Leader{Name: "nil"}
-	L_LdMerin       = &Leader{Name: "nil"}
+	L_BossSimion    = &Leader{Name: "Boss Simion", Faction: F_RebelFarmers, Home: T_FortSimion, Notes: "Can disappear. Tinfist will send you to make an alliance with anti slavers. Has a diary"}
+	L_CrabQueen     = &Leader{Name: "Crab Queen", Faction: F_CrabRaiders, Notes: "Can get an alliance."} // todo Home: T_CrabTown
+	L_LdInaba       = &Leader{Name: "Lord Inaba", Faction: F_UnitedCities, Home: T_Stoat}
+	L_LdKana        = &Leader{Name: "Lady Kana", Faction: F_TradersGuild, Home: T_PortNorth}
+	L_LdMerin       = &Leader{Name: "Lady Merin", Faction: F_UnitedCities, Home: T_DriftersLast}
 	L_LdNagata      = &Leader{Name: "Lord Nagata", Faction: F_UnitedCities, Home: T_ShoBattai}
-	L_LdSanda       = &Leader{Name: "Sanda"}
-	L_LdShiro       = &Leader{Name: "nil"}
-	L_LdTsugi       = &Leader{Name: "nil"}
+	L_LdSanda       = &Leader{Name: "Lady Sanda", Faction: F_UnitedCities, Home: T_Bark}
+	L_LdShiro       = &Leader{Name: "Lord Shiro", Faction: F_UnitedCities, Home: T_Catun}
+	L_LdTsugi       = &Leader{Name: "Lady Tsugi", Faction: F_UnitedCities, Home: T_Brink}
 	L_LdYoshinaga   = &Leader{Name: "Lord Yoshinaga", Faction: F_UnitedCities, Home: T_Heng, Notes: "No world States. if Heng is half-destroyed or handed over to Empire Peasants, Lord Yoshinaga will despawn"}
 	L_Longen        = &Leader{Name: "Longen", Faction: F_TradersGuild, Home: T_TradersEdge, Notes: "Can be turned into Tinfist. Can reward for Tinfist. captured and/or killed Longen and talk to Tinfist, you will get +75 reputation with the anti-slavers instantly, without the -30 to the UC, Slave traders or Traders Guild. "}
-	L_Preacher      = &Leader{Name: "nil"}
-	L_SMGrace       = &Leader{Name: "nil"}
+	L_Preacher      = &Leader{Name: "The Preacher", Faction: F_PreacherCult, Home: T_CultVillage, Notes: "Capture before cult village overrides to slavers."}
+	L_SMGrace       = &Leader{Name: "Slave Mistress Grace", Faction: F_TradersGuild, Home: T_SlaveFarmSouth}
 	L_SMGrande      = &Leader{Name: "Slave Master Grande", Faction: F_TradersGuild, Home: T_Eyesocket}
-	L_SMHaga        = &Leader{Name: "nil"}
+	L_SMHaga        = &Leader{Name: "Slave Master Haga", Faction: F_TradersGuild, Home: T_StoneCamp}
 	L_SMMaster      = &Leader{Name: "Slave Market Master", Faction: F_TradersGuild, Home: T_SlaveMarkets}
-	L_SMRen         = &Leader{Name: "nil"}
-	L_SMRuben       = &Leader{Name: "nil"}
-	L_SMWada        = &Leader{Name: "nil"}
+	L_SMRen         = &Leader{Name: "Slave Mistress Ren", Faction: F_TradersGuild, Home: T_SlaveFarm}
+	L_SMRuben       = &Leader{Name: "Slave Master Ruben", Faction: F_TradersGuild, Home: T_SouthStoneCamp}
+	L_SMWada        = &Leader{Name: "Slave Master Wada", Faction: F_TradersGuild, Home: T_PortSouth}
 	L_Tengu         = &Leader{Name: "Emperor Tengu", Faction: F_UnitedCities, Home: T_Heft}
 	L_Tinfist       = &Leader{Name: "Tinfist", Faction: F_AntiSlavers, Home: T_Spring}
-	L_Valamon       = &Leader{Name: "nil"}
-	L_Valtena       = &Leader{Name: "nil"}
-	L_WestHiveQueen = &Leader{Name: "nil"}
-	L_Yabuta        = &Leader{Status: Imprisoned}
+	L_Valamon       = &Leader{Name: "Valamon", Faction: F_Reavers}                                       // todo: Home: T_Ark
+	L_Valtena       = &Leader{Name: "High Inquisitor Valtena", Faction: F_HolyNation}                    // todo: valtena T_OkransShield
+	L_WestHiveQueen = &Leader{Name: "Hive Queen of the West", Faction: F_WesternHive}                    // todo: westHiveQueen
+	L_Yabuta        = &Leader{Name: "Yabuta of the Sands", Faction: F_YabutaOutlaws, Status: Imprisoned} // todo: Home: T_TenguVault
 )
 
 var Leaders = []*Leader{
@@ -133,26 +135,6 @@ func (l *Leader) Ok(want bool) Cond {
 		Leader: l,
 	}
 }
-
-//// IsAlive bit of a misnomer. means free   Ok
-//func (l *Leader) IsAlive() BoolExpr {
-//	return func() bool { return l.Status == Alive }
-//}
-//
-//// IsNotAlive is dead. Used in a few of Tinfist's world states.
-//func (l *Leader) IsNotAlive() BoolExpr {
-//	return func() bool { return l.Status == Dead }
-//}
-//
-//// Okay NPC is Alive. First seen with the west hive queen.
-//func (l *Leader) Okay() BoolExpr {
-//	return func() bool { return l.Status == Alive }
-//}
-//
-//// Ok NPC is 1 (alive). The reason for reduant functions is A. that's how it is in the FCS 2. it deals with player involvment and other factors out of scope for this app.
-//func (l *Leader) Ok() BoolExpr {
-//	return func() bool { return l.Status == Alive }
-//}
 
 func (l *Leader) npcIs1() BoolExpr {
 	return func() bool { return l.Status == Alive }

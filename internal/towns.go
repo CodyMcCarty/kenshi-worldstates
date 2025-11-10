@@ -11,6 +11,11 @@ type Town struct {
 }
 
 // list of towns at play. The towns here play the role of a town just like any override, and double duty as the map location.
+/* todo list
+T_CrabTown
+T_Ark
+T_OkransShield
+*/
 var (
 	T_Bark               = &Town{Name: "Bark", Faction: F_UnitedCities}
 	T_Brink              = &Town{Name: "Brink", Faction: F_UnitedCities}
