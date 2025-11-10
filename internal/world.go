@@ -55,6 +55,44 @@ func (w *World) Capture(ldr *Leader) {
 	}
 }
 
+func (w *World) Kill(ldr *Leader) {
+	prev := ldr.Status
+	ldr.Status = Dead
+
+	{ // log
+		var loc string
+		if ldr.Home != nil {
+			loc = ldr.Home.Name
+		} else {
+			loc = "??"
+		}
+		fmt.Println("[Leader]", ldr.Name+"("+loc+")"+":", prev.String(), "->", ldr.Status.String()+". \t", ldr.Notes)
+	}
+
+	w.UpdateWorldStates()
+}
+
+func (w *World) Release(ldr *Leader) {
+	if ldr.Status == Imprisoned {
+		prev := ldr.Status
+		ldr.Status = Alive
+
+		{ // log
+			var loc string
+			if ldr.Home != nil {
+				loc = ldr.Home.Name
+			} else {
+				loc = "??"
+			}
+			fmt.Println("[Leader]", ldr.Name+"("+loc+")"+":", prev.String(), "->", ldr.Status.String()+". \t", ldr.Notes)
+		}
+
+		w.UpdateWorldStates()
+	} else {
+		fmt.Println("WARN", ldr.Name, "is", ldr.Status.String()+".", "Only people that are imprisoned can be released")
+	}
+}
+
 // UpdateWorldStates Shouldn't be called in main(). It should be called by functions that can change world state.
 // also handles special events like Simon or Yoshinaga disappearing
 func (w *World) UpdateWorldStates() {
@@ -130,36 +168,75 @@ func (w *World) UpdateWorldStates() {
 	}
 }
 
+var bhasPrintedYoshiMesg = false
+var bhasPrintedOhtaMesg = false
+var bhasPrintedBossSimionMesg = false
+
 // hard-coded & one-off events like a person disappearing
 func (w *World) handleSpecialEvents() {
 	// todo add to world log.
 
 	// Lord Yoshinaga can disappear depending on Heng or Longen
-	if L_LdYoshinaga != nil && L_LdYoshinaga.Status == Alive {
-		bHengChanged := false
-		for _, t := range w.Towns {
-			if t.MapLoc == T_Heng {
-				if t != T_Heng {
-					bHengChanged = true
+	if !bhasPrintedYoshiMesg {
+		if L_LdYoshinaga != nil && L_LdYoshinaga.Status == Alive {
+			bHengChanged := false
+			for _, t := range w.Towns {
+				if t.MapLoc == T_Heng {
+					if t != T_Heng {
+						bHengChanged = true
+					}
+					break
 				}
-				break
+			}
+			if L_Longen.Status != Alive || bHengChanged {
+				name := L_LdYoshinaga.Name
+				L_LdYoshinaga = nil
+				fmt.Println("WARN", name, "has disappeared")
+				bhasPrintedYoshiMesg = true
 			}
 		}
-		if L_Longen.Status != Alive || bHengChanged {
-			name := L_LdYoshinaga.Name
-			L_LdYoshinaga = nil
-			fmt.Println("WARN", name, "has disappeared")
+	}
+
+	// Lord Ohta can disappear
+	if !bhasPrintedOhtaMesg {
+		if L_LdOhta != nil {
+			if L_Tengu.Status != Alive && L_LdOhta.Status == Alive {
+				name := L_LdOhta.Name
+				L_LdOhta = nil
+				fmt.Println("WARN", name, "has disappeared")
+				bhasPrintedOhtaMesg = true
+			}
 		}
 	}
 
 	// boss simion disappeared
-	if L_BossSimion != nil {
-		if L_Tengu.Status != Alive {
-			if L_Longen.Status != Alive && L_Tinfist.Status != Alive {
+	if !bhasPrintedBossSimionMesg {
+		if L_BossSimion != nil {
+			if L_Tengu.Status != Alive {
+				if L_Longen.Status != Alive && L_Tinfist.Status != Alive {
 
-			} else {
-				fmt.Println("WARN", L_BossSimion.Name, "has disappeared")
-				L_BossSimion = nil
+				} else {
+					// if simions at town then he may not dis
+					bSimionAtTradersEdge := false
+					bSimionAtHeng := false
+					for _, t := range w.Towns {
+						if t.MapLoc == T_TradersEdge && t.Faction == F_EmpirePeasants {
+							bSimionAtTradersEdge = true
+
+						}
+						if t.MapLoc == T_Heng && t.Faction == F_EmpirePeasants {
+							bSimionAtHeng = true
+						}
+					}
+					if bSimionAtHeng && bSimionAtTradersEdge {
+						fmt.Println("WARN", L_BossSimion.Name, "may disappear??")
+						bhasPrintedBossSimionMesg = true
+					} else {
+						fmt.Println("WARN", L_BossSimion.Name, "has disappeared")
+						L_BossSimion = nil
+						bhasPrintedBossSimionMesg = true
+					}
+				}
 			}
 		}
 	}
@@ -173,26 +250,18 @@ func (w *World) LogTownInfo(MapLocation *Town) {
 	notes := w.GetNotes(MapLocation)
 	fmt.Println("\t", strings.Join(notes, ". ")+".")
 
-	// print a simple list of all overrides
+	// print a simple list of all overrides and a check if this town can become desired.
 	allOT := w.GetAllPossibleOverrides(currTown)
 	allOTAsNames := GetTownNames(allOT)
-	fmt.Println("\t Overrides=[" + strings.Join(allOTAsNames, ", ") + "]")
-
 	possibleDesiredTowns := w.GetPossibleDesiredTowns(currTown)
+	bCanBeDesired := len(possibleDesiredTowns) > 0
+	fmt.Println("\t" + CheckOrCross(bCanBeDesired) + "Overrides=[" + strings.Join(allOTAsNames, ", ") + "]")
+
 	// if it can become a desired town. What does it take to become the desired town?
 	for _, d := range possibleDesiredTowns {
 		fmt.Println("\t\t", d.Name+"("+d.Faction.Name+")"+":")
 		for _, ws := range d.WorldState {
-			// print check or cross if ldr state = world state
-			{
-				fmt.Print("\t")
-				if ws.Eval() == ws.Want {
-					fmt.Print(CheckMark)
-				} else {
-					fmt.Print(CrossMark)
-				}
-			}
-			fmt.Println(ws.Leader.GetInfo())
+			fmt.Println("\t" + CheckOrCross(ws.Eval() == ws.Want) + ws.Leader.GetInfo())
 			fmt.Println("\t WorldState:", ws.Leader.Name, ws.Label, "==", ws.Want)
 		}
 	}
@@ -211,11 +280,7 @@ func GetLeadersInvolvedWithTowns(towns []*Town) (leaders []*Leader) {
 func (w *World) GetTownInfo(MapLocation *Town) (info string, bIsDesired bool, currTown *Town, desiredInfo DesiredTown) {
 	currTown = w.getCurrTown(MapLocation)
 	bIsDesired = w.isCurrTownDesired(currTown)
-	strDesiredMark := CrossMark
-	if bIsDesired {
-		strDesiredMark = CheckMark
-	}
-	info = fmt.Sprint("\n", strDesiredMark, "("+MapLocation.Name+") ", currTown.Name+".")
+	info = fmt.Sprint("\n", CheckOrCross(bIsDesired), "("+MapLocation.Name+") ", currTown.Name+".")
 
 	desiredInfo, ok := w.DesiredTownMap[MapLocation]
 	if ok {

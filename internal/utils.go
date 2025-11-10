@@ -5,6 +5,14 @@ const (
 	CrossMark = "\u2717"
 )
 
+func CheckOrCross(cond bool) string {
+	if cond {
+		return CheckMark
+	} else {
+		return CrossMark
+	}
+}
+
 type BoolExpr func() bool
 
 func allTrue(rs []Cond) bool {

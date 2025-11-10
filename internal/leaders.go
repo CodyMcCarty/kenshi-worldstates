@@ -19,6 +19,7 @@ var (
 	L_CrabQueen     = &Leader{Name: "Crab Queen", Faction: F_CrabRaiders, Notes: "Can get an alliance."} // todo Home: T_CrabTown
 	L_LdInaba       = &Leader{Name: "Lord Inaba", Faction: F_UnitedCities, Home: T_Stoat}
 	L_LdKana        = &Leader{Name: "Lady Kana", Faction: F_TradersGuild, Home: T_PortNorth}
+	L_LdOhta        = &Leader{Name: "Lord Ohta", Faction: F_UnitedCities, Home: T_Heft, Notes: "No world states. disappears."}
 	L_LdMerin       = &Leader{Name: "Lady Merin", Faction: F_UnitedCities, Home: T_DriftersLast}
 	L_LdNagata      = &Leader{Name: "Lord Nagata", Faction: F_UnitedCities, Home: T_ShoBattai}
 	L_LdSanda       = &Leader{Name: "Lady Sanda", Faction: F_UnitedCities, Home: T_Bark}
