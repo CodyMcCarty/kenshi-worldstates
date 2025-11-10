@@ -1,8 +1,7 @@
 package internal
 
 type Faction struct {
-	Name string
-	//HeadLeader *Leader
+	Name  string
 	Notes string
 }
 

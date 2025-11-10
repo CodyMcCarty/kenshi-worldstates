@@ -10,9 +10,7 @@ type Town struct {
 	Notes      string
 }
 
-// GuidedStep1 add a Town like T_SomeTown = ...
-
-// list of towns at play. Leave empty until they have all their info populated. The towns here play the role of a town just like any override, and double duty as the map location.
+// list of towns at play. The towns here play the role of a town just like any override, and double duty as the map location.
 var (
 	T_Bark               = &Town{Name: "Bark", Faction: F_UnitedCities}
 	T_Brink              = &Town{Name: "Brink", Faction: F_UnitedCities}
@@ -43,3 +41,41 @@ var (
 	T_StoneCamp          = &Town{Name: "Stone Camp", Faction: F_SlaveTraders}
 	T_TradersEdge        = &Town{Name: "Traders-Edge", Faction: F_TradersGuild}
 )
+
+var Towns = []*Town{
+	T_Bark,
+	T_Brink,
+	T_Catun,
+	T_ClownSteady,
+	T_CultVillage,
+	T_DistantHiveVillage,
+	T_DriftersLast,
+	T_Drin,
+	T_Eyesocket,
+	T_FreeSettlement,
+	T_FishingVillage,
+	T_FortSimion,
+	T_Heft,
+	T_Heng,
+	T_ManhunterBase,
+	T_Mourn,
+	T_PortNorth,
+	T_PortSouth,
+	T_SettledNomads,
+	T_ShoBattai,
+	T_SlaveFarm,
+	T_SlaveFarmSouth,
+	T_SlaveMarkets,
+	T_SouthStoneCamp,
+	T_Spring,
+	T_Stoat,
+	T_StoneCamp,
+	T_TradersEdge,
+}
+
+func GetTownNames(towns []*Town) (townNames []string) {
+	for _, o := range towns {
+		townNames = AppendUnique(townNames, o.Name)
+	}
+	return
+}

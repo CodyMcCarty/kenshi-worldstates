@@ -1,24 +1,11 @@
 package internal
 
-import "fmt"
-
-type DesiredTownLogType uint8
-
-const (
-	AlwaysLog DesiredTownLogType = iota
-	LogIfNotFirstPick
-	EitherIsFine
+import (
+	"fmt"
+	"strings"
 )
 
-type DesiredTown struct {
-	// will be just one town in most cases. Can accept multiple desired towns
-	Towns   []*Town
-	LogType DesiredTownLogType
-	Notes   string
-}
-
 type World struct {
-	//Leaders []*Leader
 	// current towns in the game. doesn't include non-existent overrides
 	Towns []*Town
 	// This is where I'm storing the overrides that I want.
@@ -26,6 +13,21 @@ type World struct {
 	Notes          []string
 	//RegionNotes map[RegionID][]string
 }
+
+// todo: rename to desired info after seed is restored.
+type DesiredTown struct {
+	// will be just one town in most cases. Can accept multiple desired towns
+	Towns   []*Town
+	LogType DesiredTownLogType
+	Notes   string
+}
+type DesiredTownLogType uint8
+
+const (
+	AlwaysLog DesiredTownLogType = iota
+	LogIfNotFirstPick
+	EitherIsFine
+)
 
 func (w *World) Seed() {
 	w.SeedTowns()
@@ -57,7 +59,9 @@ func (w *World) Capture(ldr *Leader) {
 // also handles special events like Simon or Yoshinaga disappearing
 func (w *World) UpdateWorldStates() {
 	w.handleSpecialEvents()
+
 	bWordChanged := false
+
 	for i, t := range w.Towns {
 		var overrideMatches []*Town
 		// check if all override conditions are true
@@ -75,10 +79,8 @@ func (w *World) UpdateWorldStates() {
 
 		// resolve town in the event there's more than one matching override
 		if len(overrideMatches) > 1 {
-			// log that the conflict should be verified.
 			fmt.Println("WARN Multiple overrides possible for", t.Name+". Attempting to resolve. Override with the greatest num of world stats wins.")
 			largest := 0
-			// find the town with the greater number of worldstates
 			for _, o := range overrideMatches {
 				fmt.Print(o.Name+".NumWorldStates=", len(o.WorldState), ", ")
 				l := len(o.WorldState)
@@ -87,7 +89,7 @@ func (w *World) UpdateWorldStates() {
 					overrideMatch = o
 				}
 			}
-			// if there is a tie with greatest num of worldstate, panic.
+			// if there is a tie with largest num of world states, panic.
 			for _, o := range overrideMatches {
 				if o != overrideMatch {
 					l := len(o.WorldState)
@@ -131,6 +133,7 @@ func (w *World) UpdateWorldStates() {
 // hard-coded & one-off events like a person disappearing
 func (w *World) handleSpecialEvents() {
 	// todo add to world log.
+
 	// Lord Yoshinaga can disappear depending on Heng or Longen
 	if L_LdYoshinaga != nil && L_LdYoshinaga.Status == Alive {
 		bHengChanged := false
@@ -148,7 +151,8 @@ func (w *World) handleSpecialEvents() {
 			fmt.Println("WARN", name, "has disappeared")
 		}
 	}
-	// todo boss simion disappeared?
+
+	// boss simion disappeared
 	if L_BossSimion != nil {
 		if L_Tengu.Status != Alive {
 			if L_Longen.Status != Alive && L_Tinfist.Status != Alive {
@@ -161,156 +165,150 @@ func (w *World) handleSpecialEvents() {
 	}
 }
 
-// CompareDesiredWorldStates is a debug to see check the world state.
-func (w *World) CompareDesiredWorldStates() {
-	fmt.Println()
-	fmt.Println("*** List of current overrides ***")
-	for _, t := range w.Towns {
-		dv, ok := w.DesiredTownMap[t.MapLoc]
-		if ok {
-			dtStr := ""
-			bDesiredTown := false
-			for _, dt := range dv.Towns {
-				if dt == t {
-					fmt.Println("✓", "["+t.MapLoc.Name+"]", t.Name+". \t"+dv.Notes, t.Notes, t.MapLoc.Notes)
-					// todo: can it override? has overrides and they can trigger look at settled nomads for example
-					bDesiredTown = true
-					dtStr += dt.Name
-				}
-			}
-			if bDesiredTown {
-				// print a list of other desired towns if there's multiple
-				if len(dv.Towns) > 1 {
-					str := ""
-					for i, dt := range dv.Towns {
-						str += dt.Name
-						if i != len(dv.Towns)-1 {
-							str += ", "
-						}
-					}
-					fmt.Println("\tDesiredTowns=[" + str + "]")
-				}
-				// can this town override?
-				if len(t.Overrides) > 1 {
-					str := ""
-					for i, dt := range t.Overrides {
-						str += dt.Name
-						if i != len(t.Overrides)-1 {
-							str += ", "
-						}
-					}
-					fmt.Println("\tCan still override to [" + str + "]")
-				}
-			}
-			if !bDesiredTown {
-				fmt.Println("x", "["+t.MapLoc.Name+"]", t.Name+". want:")
-				dtMsgs := ""
-				fmt.Print("\t ")
-				for _, dt := range dv.Towns {
-					fmt.Print(dt.Name + ",")
-					dtMsgs += dt.Notes
-				}
-				fmt.Println()
-				if dv.Notes != "" || t.MapLoc.Notes != "" || dtMsgs != "" {
-					fmt.Println("\t", dv.Notes, t.MapLoc.Notes, dtMsgs)
-				}
+func (w *World) LogTownInfo(MapLocation *Town) {
+	//townInfo, bIsDesired, currTown, desiredInfo := w.GetTownInfo(MapLocation)
+	townInfo, _, currTown, _ := w.GetTownInfo(MapLocation)
+	fmt.Println(townInfo)
 
-				// print list of override towns
-				if len(t.Overrides) > 0 {
-					str := ""
-					for i, dt := range t.Overrides {
-						str += dt.Name
-						if i != len(t.Overrides)-1 {
-							str += ", "
-						}
-					}
-					fmt.Println("\t", t.Name+".Overrides=["+str+"]")
+	notes := w.GetNotes(MapLocation)
+	fmt.Println("\t", strings.Join(notes, ". ")+".")
+
+	// print a simple list of all overrides
+	allOT := w.GetAllPossibleOverrides(currTown)
+	allOTAsNames := GetTownNames(allOT)
+	fmt.Println("\t Overrides=[" + strings.Join(allOTAsNames, ", ") + "]")
+
+	possibleDesiredTowns := w.GetPossibleDesiredTowns(currTown)
+	// if it can become a desired town. What does it take to become the desired town?
+	for _, d := range possibleDesiredTowns {
+		fmt.Println("\t\t", d.Name+"("+d.Faction.Name+")"+":")
+		for _, ws := range d.WorldState {
+			// print check or cross if ldr state = world state
+			{
+				fmt.Print("\t")
+				if ws.Eval() == ws.Want {
+					fmt.Print(CheckMark)
 				} else {
-					fmt.Println("\t", t.Name, "cannot override.")
+					fmt.Print(CrossMark)
 				}
 			}
-		} else {
-			fmt.Println("✓", "["+t.MapLoc.Name+"]", t.Name, "No desired town.", dv.Notes, t.Notes, t.MapLoc.Notes)
+			fmt.Println(ws.Leader.GetInfo())
+			fmt.Println("\t WorldState:", ws.Leader.Name, ws.Label, "==", ws.Want)
 		}
 	}
 }
 
-func (w *World) GetTowns() {
-	fmt.Println()
-	fmt.Println("***Towns***")
-	for _, t := range w.Towns {
-		overridesStr := ""
-		for i, o := range t.Overrides {
-			overridesStr += o.Name
-			if i < len(t.Overrides)-1 {
-				overridesStr += ", "
-			}
-		}
-		fmt.Println(t.Name)
-		fmt.Println("\tOverrides=[" + overridesStr + "]")
-		v, ok := w.DesiredTownMap[t.MapLoc]
-		if ok {
-			str := ""
-			for i, dt := range v.Towns {
-				str += dt.Name
-				if i < len(v.Towns)-1 {
-					str += ", "
-				}
-			}
-			fmt.Println("\tPrefered=[" + str + "]")
-			if v.Notes != "" {
-				fmt.Println("\t" + v.Notes)
-			}
-		} else {
-			fmt.Println("\tPrefered=[]")
-		}
-		if t.Notes != "" {
-			fmt.Println("\t" + t.Notes)
+func GetLeadersInvolvedWithTowns(towns []*Town) (leaders []*Leader) {
+	for _, t := range towns {
+		for _, ws := range t.WorldState {
+			leaders = AppendUnique(leaders, ws.Leader)
 		}
 	}
-	fmt.Println()
+	return
 }
 
-func (w *World) PrintTown(t *Town) {
-	fmt.Println("***")
-	if t == nil {
-		fmt.Println("Town is nil")
+// GetTownInfo is like "x(mapLoc) currTown. list of desiredTowns.
+func (w *World) GetTownInfo(MapLocation *Town) (info string, bIsDesired bool, currTown *Town, desiredInfo DesiredTown) {
+	currTown = w.getCurrTown(MapLocation)
+	bIsDesired = w.isCurrTownDesired(currTown)
+	strDesiredMark := CrossMark
+	if bIsDesired {
+		strDesiredMark = CheckMark
+	}
+	info = fmt.Sprint("\n", strDesiredMark, "("+MapLocation.Name+") ", currTown.Name+".")
+
+	desiredInfo, ok := w.DesiredTownMap[MapLocation]
+	if ok {
+		var dtStrs []string
+		for _, dt := range desiredInfo.Towns {
+			dtStrs = append(dtStrs, dt.Name)
+		}
+		info += fmt.Sprint(" Desired=[" + strings.Join(dtStrs, ", ") + "]")
+	}
+
+	return
+}
+
+func (w *World) GetNotes(MapLocation *Town) (notes []string) {
+	currTown := w.getCurrTown(MapLocation)
+	if len(currTown.Overrides) > 0 {
+		notes = append(notes, "Has Overrides")
+	} else {
+		notes = append(notes, "Can't override further")
+	}
+
+	desiredInfo, ok := w.DesiredTownMap[MapLocation]
+	if ok && strings.TrimSpace(desiredInfo.Notes) != "" {
+		notes = AppendUnique(notes, strings.TrimSuffix(desiredInfo.Notes, "."))
+	}
+
+	if strings.TrimSpace(currTown.Notes) != "" {
+		notes = AppendUnique(notes, strings.TrimSuffix(currTown.Notes, "."))
+	}
+
+	if strings.TrimSpace(MapLocation.Notes) != "" {
+		notes = AppendUnique(notes, strings.TrimSuffix(MapLocation.Notes, "."))
+	}
+
+	return
+}
+
+func (w *World) GetAllPossibleOverrides(currTown *Town) (AllOverrides []*Town) {
+	for _, o := range currTown.Overrides {
+		AllOverrides = AppendUnique(AllOverrides, o)
+		for _, oo := range o.Overrides {
+			AllOverrides = AppendUnique(AllOverrides, oo)
+			for _, ooo := range oo.Overrides {
+				AllOverrides = AppendUnique(AllOverrides, ooo)
+				for _, oooo := range ooo.Overrides {
+					AllOverrides = AppendUnique(AllOverrides, oooo)
+				}
+			}
+		}
+	}
+	return
+}
+
+func (w *World) GetPossibleDesiredTowns(currTown *Town) (possibleDesiredTowns []*Town) {
+	allOverrides := w.GetAllPossibleOverrides(currTown)
+	dtInfo, ok := w.DesiredTownMap[currTown.MapLoc]
+	if !ok {
+		possibleDesiredTowns = append(possibleDesiredTowns, allOverrides...)
 		return
 	}
 
-	var currentTown *Town
-	for _, town := range w.Towns {
-		if town.MapLoc == t {
-			currentTown = town
-		}
-	}
-
-	fmt.Println("["+t.MapLoc.Name+"]", currentTown.Name)
-	v, ok := w.DesiredTownMap[t.MapLoc]
-	if ok {
-		str := ""
-		for i, dt := range v.Towns {
-			str += dt.Name
-			if i < len(v.Towns)-1 {
-				str += ", "
+	for _, o := range allOverrides {
+		for _, dt := range dtInfo.Towns {
+			if dt == o {
+				possibleDesiredTowns = AppendUnique(possibleDesiredTowns, o)
 			}
 		}
-		fmt.Println("\tDesiredTowns=[" + str + "]")
-	} else {
-		fmt.Println("\tNo desired towns")
 	}
+	return
+}
 
-	// list the current towns overrides
-	str := ""
-	for i, o := range currentTown.Overrides {
-		str += o.Name
-		if i < len(currentTown.Overrides)-1 {
-			str += ", "
+func (w *World) getCurrTown(MapLocation *Town) *Town {
+	for _, town := range w.Towns {
+		if town.MapLoc == MapLocation {
+			return town
 		}
 	}
-	fmt.Println("\t", currentTown.Name+".Overrides=["+str+"]")
+	return nil
+}
 
-	fmt.Println("***")
+func (w *World) isCurrTownDesired(currTown *Town) bool {
+	desTownsInfo, ok := w.DesiredTownMap[currTown.MapLoc]
+	if ok {
+		for _, t := range desTownsInfo.Towns {
+			if currTown == t {
+				return true
+			}
+		}
+	} else {
+		// if there's no desired towns, then assume all overrides are desired.
+		return true
+	}
+	return false
 }
 
 // verify that the towns are set up as expected to avoid issues down the line.
@@ -355,7 +353,6 @@ func (w *World) initTown(t *Town) {
 	t.MapLoc = t
 }
 
-// GuidedStep2 seed the town.
 // SeedTowns fleshes out the towns' info
 func (w *World) SeedTowns() {
 	var towns []*Town
@@ -469,26 +466,27 @@ func (w *World) SeedTowns() {
 	w.initTown(T_TradersEdge)
 	towns = tradersEdge()
 	w.DesiredTownMap[T_TradersEdge] = DesiredTown{Towns: towns, Notes: "Traders Edge Prosperous needs Tinfist alive."}
+
 }
 
 func bark() (desiredTowns []*Town) {
 	BarkProsperous0 := &Town{Name: "Bark Prosperous 0", MapLoc: T_Bark, Faction: F_EmpirePeasants, WorldState: []Cond{
-		Equal(L_Tengu.IsAlive(), false),
-		Equal(L_LdSanda.IsAlive(), false),
+		L_Tengu.IsAlive(false),
+		L_LdSanda.IsAlive(false),
 	}}
 	BarkHalfDestroyed := &Town{Name: "Bark Half Destroyed", MapLoc: T_Bark, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_LdSanda.IsAlive(), false),
+		L_LdSanda.IsAlive(false),
 	}}
 	BarkMalnourished := &Town{Name: "Bark Malnourished", MapLoc: T_Bark, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_LdSanda.IsAlive(), true),
-		Equal(L_SMWada.IsAlive(), false),
-		Equal(L_LdKana.IsAlive(), false),
+		L_LdSanda.IsAlive(true),
+		L_SMWada.IsAlive(false),
+		L_LdKana.IsAlive(false),
 	}}
 	BarkProsperous2 := &Town{Name: "Bark Prosperous 2", MapLoc: T_Bark, Faction: F_EmpirePeasants, WorldState: []Cond{
-		Equal(L_Tengu.IsAlive(), true),
-		Equal(L_LdSanda.IsAlive(), false),
-		Equal(L_SMWada.IsAlive(), false),
-		Equal(L_LdKana.IsAlive(), false),
+		L_Tengu.IsAlive(true),
+		L_LdSanda.IsAlive(false),
+		L_SMWada.IsAlive(false),
+		L_LdKana.IsAlive(false),
 	}}
 	T_Bark.Overrides = append(T_Bark.Overrides, BarkProsperous0, BarkHalfDestroyed, BarkMalnourished, BarkProsperous2)
 	BarkHalfDestroyed.Overrides = append(BarkHalfDestroyed.Overrides, BarkProsperous0)
@@ -499,16 +497,16 @@ func bark() (desiredTowns []*Town) {
 
 func brink() (desiredTowns []*Town) {
 	BrinkTakeover := &Town{Name: "Brink Takeover", MapLoc: T_Brink, Faction: F_Reavers, WorldState: []Cond{
-		Equal(L_LdTsugi.IsNotAlive(), true),
-		Equal(L_Valamon.IsAlive(), true),
+		L_LdTsugi.IsNotAlive(true),
+		L_Valamon.IsAlive(true),
 	}}
 	BrinkDestroyed := &Town{Name: "Brink Destroyed", MapLoc: T_Brink, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_LdTsugi.IsAlive(), false),
-		Equal(L_Valamon.IsAlive(), false),
+		L_LdTsugi.IsAlive(false),
+		L_Valamon.IsAlive(false),
 	}}
 	BrinkMalnourished := &Town{Name: "Brink Malnourished", MapLoc: T_Brink, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_SMGrande.IsAlive(), false),
-		Equal(L_LdTsugi.IsAlive(), true),
+		L_SMGrande.IsAlive(false),
+		L_LdTsugi.IsAlive(true),
 	}}
 	T_Brink.Overrides = append(T_Brink.Overrides, BrinkTakeover, BrinkDestroyed, BrinkMalnourished)
 	BrinkTakeover.Overrides = append(BrinkTakeover.Overrides, BrinkDestroyed)
@@ -518,7 +516,7 @@ func brink() (desiredTowns []*Town) {
 
 func catun() (desiredTowns []*Town) {
 	CatunFishmanTakeover := &Town{Name: "Catun Fishman Takeover", MapLoc: T_Catun, Faction: F_Fishmen, WorldState: []Cond{
-		Equal(L_LdShiro.IsAlive(), false),
+		L_LdShiro.IsAlive(false),
 	}}
 	T_Catun.Overrides = append(T_Catun.Overrides, CatunFishmanTakeover)
 	return []*Town{T_Catun}
@@ -526,14 +524,14 @@ func catun() (desiredTowns []*Town) {
 
 func clownSteady() (desiredTowns []*Town) {
 	ClownSteadyMalnourished1 := &Town{Name: "Clown Steady Malnourished 1", MapLoc: T_ClownSteady, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_SMGrace.IsAlive(), false),
+		L_SMGrace.IsAlive(false),
 	}}
 	ClownSteadyProsperous := &Town{Name: "Clown Steady Prosperous", MapLoc: T_ClownSteady, Faction: F_EmpirePeasants, WorldState: []Cond{
-		Equal(L_SMMaster.IsAlive(), false),
-		Equal(L_SMGrace.IsAlive(), false),
+		L_SMMaster.IsAlive(false),
+		L_SMGrace.IsAlive(false),
 	}}
 	ClownSteadyMalnourished2 := &Town{Name: "Clown Steady Malnourished 2", MapLoc: T_ClownSteady, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_SMMaster.IsAlive(), false),
+		L_SMMaster.IsAlive(false),
 	}}
 	T_ClownSteady.Overrides = append(T_ClownSteady.Overrides, ClownSteadyMalnourished1, ClownSteadyProsperous, ClownSteadyMalnourished2)
 	ClownSteadyMalnourished1.Overrides = append(ClownSteadyMalnourished1.Overrides, ClownSteadyProsperous)
@@ -543,9 +541,9 @@ func clownSteady() (desiredTowns []*Town) {
 
 func cultVillage() (desiredTowns []*Town) {
 	CultVillageSlaverTakeover := &Town{Name: "Cult Village Slaver Takeover", MapLoc: T_CultVillage, Faction: F_PreacherCult, WorldState: []Cond{
-		Equal(L_Tinfist.IsAlive(), false),
-		Equal(L_Longen.IsAlive(), true),
-		Equal(L_SMGrande.IsAlive(), true),
+		L_Tinfist.IsAlive(false),
+		L_Longen.IsAlive(true),
+		L_SMGrande.IsAlive(true),
 	}}
 	T_CultVillage.Overrides = append(T_CultVillage.Overrides, CultVillageSlaverTakeover)
 	CultVillageSlaverTakeover.Overrides = append(CultVillageSlaverTakeover.Overrides)
@@ -554,11 +552,11 @@ func cultVillage() (desiredTowns []*Town) {
 
 func distantHiveVillage() (desiredTowns []*Town) {
 	DeadhiveOverrunWest := &Town{Name: "Deadhive Overrun West", MapLoc: T_DistantHiveVillage, Faction: F_Fogmen, WorldState: []Cond{
-		Equal(L_WestHiveQueen.Okay(), false),
+		L_WestHiveQueen.Okay(false),
 	}}
 	HiveVillageNEmpty := &Town{Name: "Hive Village N Empty", MapLoc: T_DistantHiveVillage, Faction: F_SlaveTraders, WorldState: []Cond{
-		Equal(L_Tinfist.IsAlive(), false),
-		Equal(L_LdKana.IsAlive(), true),
+		L_Tinfist.IsAlive(false),
+		L_LdKana.IsAlive(true),
 	}}
 	T_DistantHiveVillage.Overrides = append(T_DistantHiveVillage.Overrides, DeadhiveOverrunWest, HiveVillageNEmpty)
 	DeadhiveOverrunWest.Overrides = append(DeadhiveOverrunWest.Overrides, HiveVillageNEmpty)
@@ -567,11 +565,11 @@ func distantHiveVillage() (desiredTowns []*Town) {
 
 func driftersLast() (desiredTowns []*Town) {
 	DriftersLastProsperous := &Town{Name: "Drifters Last Prosperous", MapLoc: T_DriftersLast, Faction: F_FreeTraders, WorldState: []Cond{
-		Equal(L_LdMerin.IsAlive(), false),
-		Equal(L_SMGrace.IsAlive(), false),
+		L_LdMerin.IsAlive(false),
+		L_SMGrace.IsAlive(false),
 	}}
 	DriftersLastHalfDestroyed := &Town{Name: "Drifters Last Half Destroyed", MapLoc: T_DriftersLast, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_LdMerin.IsAlive(), false),
+		L_LdMerin.IsAlive(false),
 	}}
 	T_DriftersLast.Overrides = append(T_DriftersLast.Overrides, DriftersLastProsperous, DriftersLastHalfDestroyed)
 	DriftersLastHalfDestroyed.Overrides = append(DriftersLastHalfDestroyed.Overrides, DriftersLastProsperous)
@@ -580,14 +578,14 @@ func driftersLast() (desiredTowns []*Town) {
 
 func drin() (desiredTowns []*Town) {
 	DrinOverride := &Town{Name: "Drin Override", MapLoc: T_Drin, Faction: F_HolyNation, WorldState: []Cond{
-		Equal(L_Tengu.IsAlive(), false),
-		Equal(L_LdInaba.IsAlive(), false),
-		Equal(L_Valtena.IsAlive(), true),
+		L_Tengu.IsAlive(false),
+		L_LdInaba.IsAlive(false),
+		L_Valtena.IsAlive(true),
 	}}
 	DrinDestroyed := &Town{Name: "Drin Destroyed", MapLoc: T_Drin, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_Tengu.IsAlive(), false),
-		Equal(L_LdInaba.IsAlive(), false),
-		Equal(L_Valtena.IsAlive(), false),
+		L_Tengu.IsAlive(false),
+		L_LdInaba.IsAlive(false),
+		L_Valtena.IsAlive(false),
 	}}
 	T_Drin.Overrides = append(T_Drin.Overrides, DrinOverride, DrinDestroyed)
 	DrinOverride.Overrides = append(DrinOverride.Overrides, DrinDestroyed)
@@ -596,7 +594,7 @@ func drin() (desiredTowns []*Town) {
 
 func eyesocket() (desiredTowns []*Town) {
 	EyesocketDestroyed := &Town{Name: "Eyesocket Destroyed", MapLoc: T_Eyesocket, Faction: F_SlaveTraders, WorldState: []Cond{
-		Equal(L_SMGrande.IsAlive(), false),
+		L_SMGrande.IsAlive(false),
 	}}
 	T_Eyesocket.Overrides = append(T_Eyesocket.Overrides, EyesocketDestroyed)
 	return []*Town{T_Eyesocket}
@@ -604,9 +602,9 @@ func eyesocket() (desiredTowns []*Town) {
 
 func freeSettlement() (desiredTowns []*Town) {
 	FreeCity := &Town{Name: "Free City", MapLoc: T_FreeSettlement, Faction: F_AntiSlavers, WorldState: []Cond{
-		Equal(L_Tinfist.IsNotAlive(), false),
-		Equal(L_Tengu.Ok(), false),
-		Equal(L_Longen.IsAlive(), false),
+		L_Tinfist.IsNotAlive(false),
+		L_Tengu.Ok(false),
+		L_Longen.IsAlive(false),
 	}}
 	T_FreeSettlement.Overrides = append(T_FreeSettlement.Overrides, FreeCity)
 	return []*Town{FreeCity}
@@ -614,14 +612,14 @@ func freeSettlement() (desiredTowns []*Town) {
 
 func fishingVillage() (desiredTowns []*Town) {
 	FishingVillageSlaverTakeover := &Town{Name: "Fishing Village Slaver Takeover", MapLoc: T_FishingVillage, Faction: F_SlaveTraders, WorldState: []Cond{
-		Equal(L_Tinfist.IsAlive(), false),
-		Equal(L_Longen.IsAlive(), true),
-		Equal(L_Tengu.IsAlive(), true),
+		L_Tinfist.IsAlive(false),
+		L_Longen.IsAlive(true),
+		L_Tengu.IsAlive(true),
 	}}
 	T_FishingVillage.Overrides = append(T_FishingVillage.Overrides, FishingVillageSlaverTakeover)
 	CultTownDestroyed := &Town{Name: "Cult Town Destroyed", MapLoc: T_FishingVillage, Faction: F_SlaveTraders, WorldState: []Cond{
-		Equal(L_SMGrande.IsAlive(), false),
-		Equal(L_Longen.IsAlive(), false),
+		L_SMGrande.IsAlive(false),
+		L_Longen.IsAlive(false),
 	}}
 	FishingVillageSlaverTakeover.Overrides = append(FishingVillageSlaverTakeover.Overrides, CultTownDestroyed)
 	return []*Town{T_FishingVillage}
@@ -629,12 +627,12 @@ func fishingVillage() (desiredTowns []*Town) {
 
 func fortSimion() (desiredTowns []*Town) {
 	FortYabuta := &Town{Name: "Fort Yabuta", MapLoc: T_FortSimion, Faction: F_YabutaOutlaws, WorldState: []Cond{
-		Equal(L_Yabuta.IsAlive(), true),
+		L_Yabuta.IsAlive(true),
 		// (note) the actual world state is not allied with rebel farmers. that's outside the scope of this app considering I'll never go down this path.
-		Equal(L_BossSimion.IsAlive(), false),
+		L_BossSimion.IsAlive(false),
 	}}
 	FortSimionDestroyed := &Town{Name: "Fort Simion Destroyed", MapLoc: T_FortSimion, Faction: F_RebelSwordsmen, WorldState: []Cond{
-		Equal(L_Tengu.IsAlive(), false),
+		L_Tengu.IsAlive(false),
 	}}
 	T_FortSimion.Overrides = append(T_FortSimion.Overrides, FortYabuta, FortSimionDestroyed)
 	return []*Town{FortSimionDestroyed, FortYabuta, T_FortSimion}
@@ -642,22 +640,22 @@ func fortSimion() (desiredTowns []*Town) {
 
 func heft() (desiredTowns []*Town) {
 	HeftOverride := &Town{Name: "Heft Override", MapLoc: T_Heft, Faction: F_EmpirePeasants, WorldState: []Cond{
-		Equal(L_Tengu.IsAlive(), false),
+		L_Tengu.IsAlive(false),
 	}, Notes: "keeps best armor shop"}
 	HeftMalnourished0 := &Town{Name: "Heft Malnourished 0", MapLoc: T_Heft, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_Tengu.IsAlive(), true),
-		Equal(L_SMRen.IsAlive(), false),
-		Equal(L_SMWada.IsAlive(), false),
+		L_Tengu.IsAlive(true),
+		L_SMRen.IsAlive(false),
+		L_SMWada.IsAlive(false),
 	}}
 	HeftMalnourished2 := &Town{Name: "Heft Malnourished 2", MapLoc: T_Heft, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_Tengu.IsAlive(), true),
-		Equal(L_SMWada.IsAlive(), false),
-		Equal(L_Longen.IsAlive(), false),
+		L_Tengu.IsAlive(true),
+		L_SMWada.IsAlive(false),
+		L_Longen.IsAlive(false),
 	}}
 	HeftMalnourished3 := &Town{Name: "Heft Malnourished 3", MapLoc: T_Heft, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_Tengu.IsAlive(), true),
-		Equal(L_SMWada.IsAlive(), false),
-		Equal(L_SMRuben.IsAlive(), false),
+		L_Tengu.IsAlive(true),
+		L_SMWada.IsAlive(false),
+		L_SMRuben.IsAlive(false),
 	}}
 	T_Heft.Overrides = append(T_Heft.Overrides, HeftOverride, HeftMalnourished0, HeftMalnourished2, HeftMalnourished3)
 	HeftMalnourished0.Overrides = append(HeftMalnourished0.Overrides, HeftOverride)
@@ -668,27 +666,27 @@ func heft() (desiredTowns []*Town) {
 
 func heng() (desiredTowns []*Town) {
 	HengProsperous := &Town{Name: "Heng Prosperous", MapLoc: T_Heng, Faction: F_EmpirePeasants, WorldState: []Cond{
-		Equal(L_Longen.IsAlive(), false),
-		Equal(L_Tinfist.IsNotAlive(), false),
-		Equal(L_Tengu.IsAlive(), false),
+		L_Longen.IsAlive(false),
+		L_Tinfist.IsNotAlive(false),
+		L_Tengu.IsAlive(false),
 	}}
 	HengOverride := &Town{Name: "Heng Override", MapLoc: T_Heng, Faction: F_EmpirePeasants, WorldState: []Cond{
-		Equal(L_Longen.IsAlive(), false),
-		Equal(L_Tinfist.IsNotAlive(), true),
-		Equal(L_Tengu.IsAlive(), false),
+		L_Longen.IsAlive(false),
+		L_Tinfist.IsNotAlive(true),
+		L_Tengu.IsAlive(false),
 	}}
 	HengHalfDestroyed43 := &Town{Name: "Heng Half Destroyed 43", MapLoc: T_Heng, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_Longen.IsAlive(), false),
-		Equal(L_Tengu.IsAlive(), true),
+		L_Longen.IsAlive(false),
+		L_Tengu.IsAlive(true),
 	}}
 	HengHalfDestroyed44 := &Town{Name: "Heng Half Destroyed 44", MapLoc: T_Heng, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_Longen.IsAlive(), true),
-		Equal(L_Tengu.IsAlive(), false),
+		L_Longen.IsAlive(true),
+		L_Tengu.IsAlive(false),
 	}}
 	HengMalnourished := &Town{Name: "HengMalnourished", MapLoc: T_Heng, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_SMGrande.IsAlive(), false),
-		Equal(L_SMRuben.IsAlive(), false),
-		Equal(L_SMRen.IsAlive(), false),
+		L_SMGrande.IsAlive(false),
+		L_SMRuben.IsAlive(false),
+		L_SMRen.IsAlive(false),
 	}}
 	T_Heng.Overrides = append(T_Heng.Overrides, HengProsperous, HengOverride, HengHalfDestroyed43, HengHalfDestroyed44, HengMalnourished)
 	HengHalfDestroyed43.Overrides = append(HengHalfDestroyed43.Overrides, HengProsperous, HengOverride, HengMalnourished)
@@ -700,8 +698,8 @@ func heng() (desiredTowns []*Town) {
 
 func manhunterBase() (desiredTowns []*Town) {
 	ManhunterBaseOverride := &Town{Name: "Manhunter Base Override", MapLoc: T_ManhunterBase, Faction: F_MercenaryGuild, WorldState: []Cond{
-		Equal(L_SMMaster.IsAlive(), false),
-		Equal(L_SMGrace.IsAlive(), false),
+		L_SMMaster.IsAlive(false),
+		L_SMGrace.IsAlive(false),
 	}}
 	T_ManhunterBase.Overrides = append(T_ManhunterBase.Overrides, ManhunterBaseOverride)
 	return []*Town{ManhunterBaseOverride}
@@ -709,13 +707,13 @@ func manhunterBase() (desiredTowns []*Town) {
 
 func portNorth() (desiredTowns []*Town) {
 	PortNorthDestroyed := &Town{Name: "Port North Destroyed", MapLoc: T_PortNorth, Faction: F_SlaveTraders, WorldState: []Cond{
-		Equal(L_LdKana.IsAlive(), false),
+		L_LdKana.IsAlive(false),
 	}}
 	PortNorthFarmTown := &Town{Name: "Port North Farm Town", MapLoc: T_PortNorth, Faction: F_EmpirePeasants, WorldState: []Cond{
-		Equal(L_LdNagata.IsAlive(), false),
-		Equal(L_LdKana.IsAlive(), false),
-		Equal(L_Tengu.Ok(), false),
-		Equal(L_BossSimion.IsAlive(), true),
+		L_LdNagata.IsAlive(false),
+		L_LdKana.IsAlive(false),
+		L_Tengu.Ok(false),
+		L_BossSimion.IsAlive(true),
 	}}
 	T_PortNorth.Overrides = append(T_PortNorth.Overrides, PortNorthDestroyed, PortNorthFarmTown)
 	PortNorthDestroyed.Overrides = append(PortNorthDestroyed.Overrides, PortNorthFarmTown)
@@ -724,12 +722,12 @@ func portNorth() (desiredTowns []*Town) {
 
 func portSouth() (desiredTowns []*Town) {
 	PortSouthDestroyed := &Town{Name: "Port South Destroyed", MapLoc: T_PortSouth, Faction: F_SlaveTraders, WorldState: []Cond{
-		Equal(L_SMWada.IsAlive(), false),
+		L_SMWada.IsAlive(false),
 	}}
 	PortSouthFarmTown := &Town{Name: "Port South Farm Town", MapLoc: T_PortSouth, Faction: F_EmpirePeasants, WorldState: []Cond{
-		Equal(L_Tengu.Ok(), false),
-		Equal(L_SMWada.IsAlive(), false),
-		Equal(L_Longen.IsAlive(), false),
+		L_Tengu.Ok(false),
+		L_SMWada.IsAlive(false),
+		L_Longen.IsAlive(false),
 	}}
 	T_PortSouth.Overrides = append(T_PortSouth.Overrides, PortSouthDestroyed, PortSouthFarmTown)
 
@@ -743,8 +741,8 @@ func portSouth() (desiredTowns []*Town) {
 
 func settledNomads() (desiredTowns []*Town) {
 	SettledNomadsEmpty := &Town{Name: "Settled Nomads Empty", MapLoc: T_SettledNomads, Faction: F_SlaveTraders, WorldState: []Cond{
-		Equal(L_Tinfist.IsAlive(), false),
-		Equal(L_Longen.IsAlive(), true),
+		L_Tinfist.IsAlive(false),
+		L_Longen.IsAlive(true),
 	}}
 	T_SettledNomads.Overrides = append(T_SettledNomads.Overrides, SettledNomadsEmpty)
 	return []*Town{T_SettledNomads}
@@ -752,33 +750,33 @@ func settledNomads() (desiredTowns []*Town) {
 
 func shoBattai() (desiredTowns []*Town) {
 	ShoBattaiHalfDestroyed := &Town{Name: "Sho-Battai Half Destroyed", MapLoc: T_ShoBattai, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_LdNagata.IsAlive(), false),
-		Equal(L_Tengu.IsAlive(), true),
+		L_LdNagata.IsAlive(false),
+		L_Tengu.IsAlive(true),
 	}}
 	ShoBattaiCannibals := &Town{Name: "Sho-Battai Cannibals", MapLoc: T_ShoBattai, Faction: F_Cannibal, WorldState: []Cond{
-		Equal(L_Tengu.IsAlive(), false),
-		Equal(L_LdNagata.IsAlive(), false),
-		Equal(L_BossSimion.IsAlive(), false),
+		L_Tengu.IsAlive(false),
+		L_LdNagata.IsAlive(false),
+		L_BossSimion.IsAlive(false),
 	}}
 	ShoBattaiProsperous := &Town{Name: "Sho-Battai Prosperous", MapLoc: T_ShoBattai, Faction: F_EmpirePeasants, WorldState: []Cond{
-		Equal(L_Tengu.Ok(), false),
-		Equal(L_LdNagata.IsAlive(), false),
-		Equal(L_BossSimion.IsAlive(), true),
+		L_Tengu.Ok(false),
+		L_LdNagata.IsAlive(false),
+		L_BossSimion.IsAlive(true),
 	}}
 	ShoBattaiMalnourished := &Town{Name: "Sho-Battai Malnourished", MapLoc: T_ShoBattai, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_Tengu.IsAlive(), true),
-		Equal(L_LdNagata.IsAlive(), true),
-		Equal(L_LdKana.IsNotAlive(), true),
+		L_Tengu.IsAlive(true),
+		L_LdNagata.IsAlive(true),
+		L_LdKana.IsNotAlive(true),
 	}}
 	ShoBattaiMalnourishedHalfDestroyed0 := &Town{Name: "Sho-Battai Malnourished & Half Destroyed 0", MapLoc: T_ShoBattai, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_Tengu.IsAlive(), true),
-		Equal(L_LdNagata.IsAlive(), false),
-		Equal(L_LdKana.IsNotAlive(), true),
+		L_Tengu.IsAlive(true),
+		L_LdNagata.IsAlive(false),
+		L_LdKana.IsNotAlive(true),
 	}}
 	ShoBattaiMalnourishedHalfDestroyed2 := &Town{Name: "Sho-Battai Malnourished & Half Destroyed 2", MapLoc: T_ShoBattai, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_Tengu.IsAlive(), false),
-		Equal(L_LdNagata.IsAlive(), true),
-		Equal(L_LdKana.IsNotAlive(), true),
+		L_Tengu.IsAlive(false),
+		L_LdNagata.IsAlive(true),
+		L_LdKana.IsNotAlive(true),
 	}}
 	T_ShoBattai.Overrides = append(T_ShoBattai.Overrides, ShoBattaiHalfDestroyed, ShoBattaiCannibals, ShoBattaiProsperous, ShoBattaiMalnourished, ShoBattaiMalnourishedHalfDestroyed0, ShoBattaiMalnourishedHalfDestroyed2)
 	ShoBattaiHalfDestroyed.Overrides = append(ShoBattaiHalfDestroyed.Overrides, ShoBattaiCannibals, ShoBattaiProsperous, ShoBattaiMalnourishedHalfDestroyed0)
@@ -795,7 +793,7 @@ func shoBattai() (desiredTowns []*Town) {
 
 func slaveFarm() (desiredTowns []*Town) {
 	SlaveFarmDestroyed := &Town{Name: "Slave Farm Destroyed", MapLoc: T_SlaveFarm, Faction: F_SlaveTraders, WorldState: []Cond{
-		Equal(L_SMRen.IsAlive(), false),
+		L_SMRen.IsAlive(false),
 	}}
 	T_SlaveFarm.Overrides = append(T_SlaveFarm.Overrides, SlaveFarmDestroyed)
 	return []*Town{T_SlaveFarm}
@@ -803,11 +801,11 @@ func slaveFarm() (desiredTowns []*Town) {
 
 func slaveFarmSouth() (desiredTowns []*Town) {
 	SlaveFarmSDestroyed := &Town{Name: "Slave Farm South Destroyed", MapLoc: T_SlaveFarmSouth, Faction: F_SlaveTraders, WorldState: []Cond{
-		Equal(L_SMGrace.IsAlive(), false),
+		L_SMGrace.IsAlive(false),
 	}}
 	SlaveFarmSFarmTown := &Town{Name: "Slave Farm South Farm Town", MapLoc: T_SlaveFarmSouth, Faction: F_SlaveTraders, WorldState: []Cond{
-		Equal(L_SMMaster.IsAlive(), false),
-		Equal(L_SMGrace.IsAlive(), false),
+		L_SMMaster.IsAlive(false),
+		L_SMGrace.IsAlive(false),
 	}}
 	T_SlaveFarmSouth.Overrides = append(T_SlaveFarmSouth.Overrides, SlaveFarmSDestroyed, SlaveFarmSFarmTown)
 	SlaveFarmSDestroyed.Overrides = append(SlaveFarmSDestroyed.Overrides, SlaveFarmSFarmTown)
@@ -816,7 +814,7 @@ func slaveFarmSouth() (desiredTowns []*Town) {
 
 func slaveMarkets() (desiredTowns []*Town) {
 	SlaveMarketDestroyed := &Town{Name: "Slave market Destroyed", MapLoc: T_SlaveMarkets, Faction: F_SlaveTraders, WorldState: []Cond{
-		Equal(L_SMMaster.IsAlive(), false),
+		L_SMMaster.IsAlive(false),
 	}}
 	T_SlaveMarkets.Overrides = append(T_SlaveMarkets.Overrides, SlaveMarketDestroyed)
 	return []*Town{T_SlaveMarkets}
@@ -824,7 +822,7 @@ func slaveMarkets() (desiredTowns []*Town) {
 
 func southStoneCamp() (desiredTowns []*Town) {
 	SouthStoneCampDestroyed := &Town{Name: "South Stone Camp Destroyed", MapLoc: T_SouthStoneCamp, Faction: F_SlaveTraders, WorldState: []Cond{
-		Equal(L_SMRuben.IsAlive(), false),
+		L_SMRuben.IsAlive(false),
 	}}
 	T_SouthStoneCamp.Overrides = append(T_SouthStoneCamp.Overrides, SouthStoneCampDestroyed)
 	return []*Town{T_SouthStoneCamp}
@@ -832,40 +830,40 @@ func southStoneCamp() (desiredTowns []*Town) {
 
 func stoat() (desiredTowns []*Town) {
 	StoatHalfDesttroyed29 := &Town{Name: "Stoat Half Desttroyed 29", MapLoc: T_Stoat, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_LdInaba.IsAlive(), false),
-		Equal(L_Tengu.IsAlive(), true),
+		L_LdInaba.IsAlive(false),
+		L_Tengu.IsAlive(true),
 	}}
 	StoatHalfDesttroyed30 := &Town{Name: "Stoat Half Desttroyed 30", MapLoc: T_Stoat, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_Tengu.IsAlive(), false),
-		Equal(L_LdInaba.IsAlive(), true),
+		L_Tengu.IsAlive(false),
+		L_LdInaba.IsAlive(true),
 	}}
 	StoatYabuta := &Town{Name: "Stoat Yabuta", MapLoc: T_Stoat, Faction: F_YabutaOutlaws, WorldState: []Cond{
-		Equal(L_LdInaba.IsAlive(), false),
-		Equal(L_Yabuta.IsAlive(), true),
-		Equal(L_Tengu.IsAlive(), false),
+		L_LdInaba.IsAlive(false),
+		L_Yabuta.IsAlive(true),
+		L_Tengu.IsAlive(false),
 	}}
 	StoatTakeover := &Town{Name: "Stoat Takeover", MapLoc: T_Stoat, Faction: F_TechHunters, WorldState: []Cond{
-		Equal(L_Tengu.IsAlive(), false),
-		Equal(L_LdInaba.IsAlive(), false),
-		Equal(L_Yabuta.IsAlive(), false),
+		L_Tengu.IsAlive(false),
+		L_LdInaba.IsAlive(false),
+		L_Yabuta.IsAlive(false),
 	}}
 	StoatMalnourished := &Town{Name: "Stoat Malnourished", MapLoc: T_Stoat, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_Tengu.IsAlive(), true),
-		Equal(L_LdInaba.IsAlive(), true),
-		Equal(L_SMHaga.IsAlive(), false),
-		Equal(L_SMRen.IsAlive(), false),
+		L_Tengu.IsAlive(true),
+		L_LdInaba.IsAlive(true),
+		L_SMHaga.IsAlive(false),
+		L_SMRen.IsAlive(false),
 	}}
 	StoatMalnourishedHalfDestroyed0 := &Town{Name: "Stoat Malnourished & Half Destroyed 0", MapLoc: T_Stoat, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_Tengu.IsAlive(), false),
-		Equal(L_LdInaba.IsAlive(), true),
-		Equal(L_SMHaga.IsAlive(), false),
-		Equal(L_SMRen.IsAlive(), false),
+		L_Tengu.IsAlive(false),
+		L_LdInaba.IsAlive(true),
+		L_SMHaga.IsAlive(false),
+		L_SMRen.IsAlive(false),
 	}}
 	StoatMalnourishedHalfDestroyed2 := &Town{Name: "Stoat Malnourished & Half Destroyed 2", MapLoc: T_Stoat, Faction: F_UnitedCities, WorldState: []Cond{
-		Equal(L_Tengu.IsAlive(), true),
-		Equal(L_LdInaba.IsAlive(), false),
-		Equal(L_SMHaga.IsAlive(), false),
-		Equal(L_SMRen.IsAlive(), false),
+		L_Tengu.IsAlive(true),
+		L_LdInaba.IsAlive(false),
+		L_SMHaga.IsAlive(false),
+		L_SMRen.IsAlive(false),
 	}}
 	T_Stoat.Overrides = append(T_Stoat.Overrides, StoatHalfDesttroyed29, StoatHalfDesttroyed30, StoatYabuta, StoatTakeover, StoatMalnourished, StoatMalnourishedHalfDestroyed0, StoatMalnourishedHalfDestroyed2)
 	StoatHalfDesttroyed29.Overrides = append(StoatHalfDesttroyed29.Overrides, StoatYabuta, StoatTakeover, StoatMalnourishedHalfDestroyed0, StoatMalnourishedHalfDestroyed2)
@@ -878,7 +876,7 @@ func stoat() (desiredTowns []*Town) {
 
 func stoneCamp() (desiredTowns []*Town) {
 	StoneCampDestroyed := &Town{Name: "Stone Camp Destroyed", MapLoc: T_StoneCamp, Faction: F_SlaveTraders, WorldState: []Cond{
-		Equal(L_SMHaga.IsAlive(), false),
+		L_SMHaga.IsAlive(false),
 	}}
 	T_StoneCamp.Overrides = append(T_StoneCamp.Overrides, StoneCampDestroyed)
 	return []*Town{T_StoneCamp}
@@ -886,34 +884,34 @@ func stoneCamp() (desiredTowns []*Town) {
 
 func tradersEdge() (desiredTowns []*Town) {
 	TradersEdgeProsperous := &Town{Name: "Trade's Edge Prosperous", MapLoc: T_TradersEdge, Faction: F_AntiSlavers, WorldState: []Cond{
-		Equal(L_Longen.IsAlive(), false),
-		Equal(L_Tinfist.IsNotAlive(), false),
-		Equal(L_Tengu.IsAlive(), false),
+		L_Longen.IsAlive(false),
+		L_Tinfist.IsNotAlive(false),
+		L_Tengu.IsAlive(false),
 	}}
 	TradersEdgeOverride := &Town{Name: "Trade's Edge Override", MapLoc: T_TradersEdge, Faction: F_EmpirePeasants, WorldState: []Cond{
-		Equal(L_Longen.IsAlive(), false),
-		Equal(L_Tinfist.IsNotAlive(), true),
-		Equal(L_Tengu.IsAlive(), false),
+		L_Longen.IsAlive(false),
+		L_Tinfist.IsNotAlive(true),
+		L_Tengu.IsAlive(false),
 	}}
 	TradersEdgeDestroyed := &Town{Name: "Trade's Edge Destroyed", MapLoc: T_TradersEdge, Faction: F_TradersGuild, WorldState: []Cond{
-		Equal(L_Longen.IsAlive(), false),
-		Equal(L_Tengu.IsAlive(), true),
+		L_Longen.IsAlive(false),
+		L_Tengu.IsAlive(true),
 	}}
 	TradersEdgeMalnourished0 := &Town{Name: "Trade's Edge Malnourished 0", MapLoc: T_TradersEdge, Faction: F_TradersGuild, WorldState: []Cond{
-		Equal(L_Longen.IsAlive(), true),
-		Equal(L_SMGrande.IsAlive(), false),
-		Equal(L_SMRuben.IsAlive(), false),
-		Equal(L_SMRen.IsAlive(), false),
+		L_Longen.IsAlive(true),
+		L_SMGrande.IsAlive(false),
+		L_SMRuben.IsAlive(false),
+		L_SMRen.IsAlive(false),
 	}}
 	TradersEdgeMalnourished1 := &Town{Name: "Trade's Edge Malnourished 1", MapLoc: T_TradersEdge, Faction: F_TradersGuild, WorldState: []Cond{
-		Equal(L_Longen.IsAlive(), false),
-		Equal(L_SMGrande.IsAlive(), false),
-		Equal(L_SMRuben.IsAlive(), false),
-		Equal(L_SMRen.IsAlive(), false),
+		L_Longen.IsAlive(false),
+		L_SMGrande.IsAlive(false),
+		L_SMRuben.IsAlive(false),
+		L_SMRen.IsAlive(false),
 	}}
 	T_TradersEdge.Overrides = append(T_TradersEdge.Overrides, TradersEdgeProsperous, TradersEdgeOverride, TradersEdgeDestroyed, TradersEdgeMalnourished0, TradersEdgeMalnourished1)
 	TradersEdgeDestroyed.Overrides = append(TradersEdgeDestroyed.Overrides, TradersEdgeProsperous, TradersEdgeOverride)
 	TradersEdgeMalnourished0.Overrides = append(TradersEdgeMalnourished0.Overrides, TradersEdgeProsperous, TradersEdgeOverride)
 	TradersEdgeMalnourished1.Overrides = append(TradersEdgeMalnourished1.Overrides, TradersEdgeProsperous, TradersEdgeOverride)
-	return []*Town{TradersEdgeProsperous}
+	return []*Town{TradersEdgeProsperous, TradersEdgeOverride}
 }

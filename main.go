@@ -6,25 +6,30 @@ import (
 	. "github.com/CodyMcCarty/kenshi-worldstates/internal"
 )
 
-// (note) to add, I made a guide.  Search for "GuidedStep"
+/* Todos
+[] reintroduce seedtowns
+[] rename things
+[] test out logs and debugers herlpers
+[] finish leader infos and looking at the wiki
+[] add HN and Shek towns
+[] add bounties
+*/
+
+func PrintAllTownInfo(w *World) {
+	fmt.Println("*** Town info ***")
+	for _, t := range Towns {
+		w.LogTownInfo(t)
+	}
+	fmt.Println()
+}
+
+var TradersGuildLeaders = []*Leader{
+	L_Longen, L_LdKana, L_SMRen, L_SMHaga, L_SMRuben, L_SMWada, L_SMGrande, L_SMGrace, L_SMMaster,
+}
 
 func main() {
 	w := &World{DesiredTownMap: make(map[*Town]DesiredTown)}
 	w.Seed()
-
-	//fromOldApp(w)
-
-	w.Capture(L_LdYoshinaga)
-	w.Capture(L_Tengu)
-	w.Capture(L_Longen)
-
-	//w.PrintTown(T_ShoBattai)
-	//PrintLeaderStatus([]*Leader{L_Tengu, L_LdNagata, L_BossSimion})
-
-	// all trader's guild people:
-	PrintLeaderStatus([]*Leader{L_Longen, L_LdKana, L_SMRen, L_SMHaga, L_SMRuben, L_SMWada, L_SMGrande, L_SMGrace, L_SMMaster})
-
-	w.CompareDesiredWorldStates()
 
 	// todo: add UC TG Slaver only bounties i.e. Blue Eyes.
 	// todo: I may want to keep heft as is
