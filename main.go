@@ -61,7 +61,33 @@ func main() {
 	// todo: I may want to keep heft as is
 	TryToGetToProsperousQuickly(w)
 
+	// todo: can I ally with the shek and HN?
+
 	// todo: what can be done with HN and Shek to improve their towns and life?
+	// maybe capture seto. check in game what shops are in admag vs the fcs.
+	/* og admag : ovr
+	armour		armor
+	Bar			bar
+	Bar			bar
+	General		trade
+	Thieves		Thieves
+	Travel		adventure
+	Weapon		weapon
+				advMechanical
+	HN and Skek spawn more and fight more places.
+
+
+
+
+
+
+
+
+	*/
+
+	// todo: anything with minor factions Deadcat, Flotsam Ninjas, Mongrol, etc.
+	// todo: the swamps
+	// todo: world states not tied to towns
 
 	PrintAllTownInfo(w)
 
@@ -78,7 +104,7 @@ func main() {
 // todo what's the earliest I can take longen and tengu?
 // TryToGetToProsperousQuickly Goal is Make the world fun, better towns, go after the trade guild.
 func TryToGetToProsperousQuickly(w *World) {
-	// Yoshi and Ohta can disappear.
+	fmt.Println("Yoshi and Ohta can disappear.")
 	w.Capture(L_LdYoshinaga)
 	w.Capture(L_LdOhta)
 	w.Capture(L_Longen) // turn Longen into Tinfist. Make alliance with Boss Simion for Tinfist.
@@ -87,23 +113,22 @@ func TryToGetToProsperousQuickly(w *World) {
 	// DistantHiveVillage				falls if !tinfist && Kana
 	w.Capture(L_LdNagata)
 	w.Capture(L_LdKana)
-	w.Kill(L_LdKana) // to prevent distant hive village issues. Alternatively, this would be a good check to ensure releasing Tinfist works.
+	fmt.Println("kill Kana to prevent distant hive village override. Alternatively, this would be a good check to ensure releasing Tinfist works.")
+	w.Kill(L_LdKana)
 
+	fmt.Println("The order is important. Tinfist Imprisoned, Tengu Imprisoned. Then Tinfist Release and latter death. verify BossSimion at Heng")
 	// TraderEdge & Heng Simion Can move in.
+	fmt.Println("Capture Tinfist so Boss Simion moves into Heng. Otherwise Boss Simion disappears when Tengu is captured.")
 	w.Capture(L_Tinfist)
 	w.Capture(L_Tengu) // Simion disappears if tinfist is alive.
 
-	// FreeCity	Free Tinfist
+	fmt.Println("Release Tinfist so Free Settlement -> Free City")
 	w.Release(L_Tinfist)
+	fmt.Println("Verify Boss Simion at Heng.")
 
 	// Drin 		Inaba				HN
 	// Stoat		Inaba				TechHunter
 	w.Capture(L_LdInaba)
-
-	//ldrs := []*Leader{L_LdSanda, L_SMGrace, L_SMMaster, L_LdMerin, L_SMWada}
-	//for _, l := range ldrs {
-	//	l.LogInfo()
-	//}
 
 	// Bark 		sanda
 	// PortSouth 	Wada
@@ -117,28 +142,32 @@ func TryToGetToProsperousQuickly(w *World) {
 	w.Capture(L_SMGrace)
 	w.Capture(L_LdMerin)
 
-	// todo: I initally set out to get all the Trader's guild
-	fmt.Println("What's the status of the United Cities")
-	for _, l := range UnitedCitiesLeaders {
-		l.LogInfo()
+	{
+		fmt.Println("I initally set out to get all the Trader's guild")
+		fmt.Println("What's the status of the United Cities")
+		for _, l := range UnitedCitiesLeaders {
+			l.LogInfo()
+		}
+		fmt.Println(`
+		if capture Tsugi. Brink -> Brink Takeover (Reavers). This is a possibility
+		if capture Shiro. Catun -> Catun Fishman Takeover
+		`)
+		fmt.Println("\nWhat's the status of the Trader's Guild")
+		for _, l := range TradersGuildLeaders {
+			l.LogInfo()
+		}
+		fmt.Println(`
+			if capture Ren Slave Farm -> Slave Farm Destroyed
+			if capture Haga Stone Camp -> Stone Camp Destroyed
+			if capture Grande Eyesocket -> Eyesocket Destroyed
+			if capture Ruben South Stone Camp -> South Stone Camp Destroyed
+		`)
 	}
-	fmt.Println("What's the status of the Trader's Guild")
-	for _, l := range TradersGuildLeaders {
-		l.LogInfo()
-	}
-	// UC
-	//L_LdTsugi, L_LdShiro,, L_SMRen, L_SMHaga, L_SMRuben, L_SMGrande
-	//w.Capture(L_LdTsugi) // Brink 	->	 Brink Takeover (Reavers)
-	//w.Capture(L_LdShiro)  // Catun 	->	 Catun Fishman Takeover
-	// Trader's Guild
-	//w.Capture(L_SMRen)    // Slave Farm 	->	 Slave Farm Destroyed
-	//w.Capture(L_SMHaga)   // Stone Camp 	->	 Stone Camp Destroyed
-	//w.Capture(L_SMGrande) // Eyesocket 	->	 Eyesocket Destroyed
-	//w.Capture(L_SMRuben)  // South Stone Camp 	->	 South Stone Camp Destroyed
 
-	w.Kill(L_Longen) // Settled Nomads -> Settled Nomads Empty
+	fmt.Println("Kill Longen to prevent Settled Nomads -> Settled Nomads Empty")
+	w.Kill(L_Longen)
 
-	fmt.Println("kill tinfist at the end. I want his cpu.  Can I do it at the start for cult village?")
+	fmt.Println("kill tinfist at the end. He's going a little nuts. The last time skeles tried to rule people, it didn't turn out well. I want his cpu.  Can I do it at the start for cult village? No, if cult village turns then settled Nomads turns.")
 	w.Kill(L_Tinfist)
 
 	fmt.Println("Double check that Boss Simion didn't disappear.")
